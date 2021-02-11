@@ -4,7 +4,7 @@ A go package that provides a Ruby-like `Hash.dig` mechanism for `map[string]inte
 
 ## Usage
 
-Dig's Mapping is useful for example to use as the Unmarshal target of arbitary YAML/JSON documents.
+Dig's Mapping is useful for example to use as the Unmarshal target of arbitrary YAML/JSON documents.
 
 ### Example
 ```go
