@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 )
 
 func TestDig(t *testing.T) {
@@ -50,6 +51,14 @@ func TestDigMapping(t *testing.T) {
 	assert.Equal(t, "hello", m.Dig("foo", "bar", "baz"))
 }
 
+func TestUnmarshalYamlWithNil(t *testing.T) {
+	data := `foo: null`
+	var m Mapping
+	err := yaml.Unmarshal([]byte(data), &m)
+	assert.NoError(t, err)
+	assert.Nil(t, m.Dig("foo"))
+}
+
 func ExampleMapping_Dig() {
 	h := Mapping{
 		"greeting": Mapping{
@@ -63,14 +72,18 @@ func ExampleMapping_Dig() {
 func ExampleMapping_DigMapping() {
 	h := Mapping{}
 	h.DigMapping("greeting")["target"] = "world"
-	fmt.Println("Hello", h.Dig("greeting", "target"))
+	fmt.Println("Hello,", h.Dig("greeting", "target"))
 	// Output: Hello, world
 }
 
 func ExampleMapping_DigString() {
 	h := Mapping{}
-	fmt.Println("Hello,", h.Dig("greeting", "target"), "!")
+	h.DigMapping("greeting")["target"] = "world"
 	fmt.Println("Hello,", h.DigString("greeting", "target"), "!")
-	// Output: Hello, nil !
-	// Output: Hello, !
+	fmt.Println("Hello,", h.Dig("greeting", "non-existing"), "!")
+	fmt.Println("Hello,", h.DigString("greeting", "non-existing"), "!")
+	// Output:
+	// Hello, world !
+	// Hello, <nil> !
+	// Hello,  !
 }
