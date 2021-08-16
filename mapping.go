@@ -93,21 +93,15 @@ func (m *Mapping) Dup() Mapping {
 			new[k] = ns
 		case []string:
 			var ns []string
-			for _, sv := range vt {
-				ns = append(ns, sv)
-			}
+			ns = append(ns, vt...)
 			new[k] = ns
 		case []int:
 			var ns []int
-			for _, sv := range vt {
-				ns = append(ns, sv)
-			}
+			ns = append(ns, vt...)
 			new[k] = ns
 		case []bool:
 			var ns []bool
-			for _, sv := range vt {
-				ns = append(ns, sv)
-			}
+			ns = append(ns, vt...)
 			new[k] = ns
 		default:
 			new[k] = vt
