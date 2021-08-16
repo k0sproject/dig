@@ -70,6 +70,52 @@ func (m *Mapping) DigMapping(keys ...string) Mapping {
 	}
 }
 
+// Dup creates a dereferenced copy of the Mapping
+func (m *Mapping) Dup() Mapping {
+	new := make(Mapping, len(*m))
+	for k, v := range *m {
+		switch vt := v.(type) {
+		case Mapping:
+			new[k] = vt.Dup()
+		case *Mapping:
+			new[k] = vt.Dup()
+		case []Mapping:
+			var ns []Mapping
+			for _, sv := range vt {
+				ns = append(ns, sv.Dup())
+			}
+			new[k] = ns
+		case []*Mapping:
+			var ns []Mapping
+			for _, sv := range vt {
+				ns = append(ns, sv.Dup())
+			}
+			new[k] = ns
+		case []string:
+			var ns []string
+			for _, sv := range vt {
+				ns = append(ns, sv)
+			}
+			new[k] = ns
+		case []int:
+			var ns []int
+			for _, sv := range vt {
+				ns = append(ns, sv)
+			}
+			new[k] = ns
+		case []bool:
+			var ns []bool
+			for _, sv := range vt {
+				ns = append(ns, sv)
+			}
+			new[k] = ns
+		default:
+			new[k] = vt
+		}
+	}
+	return new
+}
+
 // Cleans up a slice of interfaces into slice of actual values
 func cleanUpInterfaceArray(in []interface{}) []interface{} {
 	result := make([]interface{}, len(in))

@@ -51,6 +51,47 @@ func TestDigMapping(t *testing.T) {
 	assert.Equal(t, "hello", m.Dig("foo", "bar", "baz"))
 }
 
+func TestDup(t *testing.T) {
+	m := Mapping{
+		"foo": Mapping{
+			"bar": "foobar",
+		},
+		"array": []string{
+			"hello",
+		},
+		"mappingarray": []Mapping{
+			{"bar": "foobar"},
+			{"foo": "barfoo"},
+		},
+	}
+
+	dup := m.Dup()
+
+	m.DigMapping("foo")["bar"] = "barbar"
+	arr := m.Dig("array").([]string)
+	arr = append(arr, "world")
+	m["array"] = arr
+
+	ma := m["mappingarray"].([]Mapping)
+	maa := ma[0]
+	maa["bar"] = "barbar"
+
+	assert.Equal(t, "barbar", m.Dig("foo", "bar"))
+	assert.Equal(t, "foobar", dup.Dig("foo", "bar"))
+
+	a := m.Dig("array").([]string)
+	b := dup.Dig("array").([]string)
+
+	assert.Len(t, a, 2)
+	assert.Len(t, b, 1)
+
+	am := m.Dig("mappingarray").([]Mapping)
+	bm := dup.Dig("mappingarray").([]Mapping)
+
+	assert.Equal(t, "barbar", am[0]["bar"])
+	assert.Equal(t, "foobar", bm[0]["bar"])
+}
+
 func TestUnmarshalYamlWithNil(t *testing.T) {
 	data := `foo: null`
 	var m Mapping
