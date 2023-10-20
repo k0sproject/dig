@@ -1,6 +1,6 @@
 # Dig
 
-A go package that provides a Ruby-like `Hash.dig` mechanism for `map[string]any`, which in YAML is refered to as "Mapping".
+A simple zero-dependency go package that provides a Ruby-like `Hash.dig` mechanism for `map[string]any`, which in YAML is refered to as "Mapping".
 
 ## Usage
 

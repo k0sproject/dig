@@ -1,14 +1,30 @@
 package dig_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/k0sproject/dig"
-
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
 )
+
+func mustEqualString(t *testing.T, expected, actual string) {
+	if expected != actual {
+		t.Errorf("Expected %v, got %v", expected, actual)
+	}
+}
+
+func mustBeNil(t *testing.T, actual any) {
+	if actual != nil {
+		t.Errorf("Expected nil, got %v", actual)
+	}
+}
+
+func mustEqual(t *testing.T, expected, actual any) {
+	if expected != actual {
+		t.Errorf("Expected %v, got %v", expected, actual)
+	}
+}
 
 func TestDig(t *testing.T) {
 	m := dig.Mapping{
@@ -17,9 +33,13 @@ func TestDig(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "foobar", m.Dig("foo", "bar"))
+	t.Run("fetch nested value", func(t *testing.T) {
+		mustEqualString(t, "foobar", m.Dig("foo", "bar").(string))
+	})
 
-	assert.Nil(t, m.Dig("foo", "non-existing", "key"))
+	t.Run("non-existing key should return nil", func(t *testing.T) {
+		mustBeNil(t, m.Dig("foo", "non-existing"))
+	})
 }
 
 func TestDigString(t *testing.T) {
@@ -29,9 +49,14 @@ func TestDigString(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "foobar", m.DigString("foo", "bar"))
-	assert.Equal(t, "", m.DigString("foo", "nonexisting"))
-	assert.Equal(t, "", m.DigString("nonexisting", "nonexisting"))
+	t.Run("fetch nested string", func(t *testing.T) {
+		mustEqualString(t, "foobar", m.DigString("foo", "bar"))
+	})
+
+	t.Run("non-existing key should return an empty string", func(t *testing.T) {
+		mustEqualString(t, "", m.DigString("foo", "non-existing"))
+		mustEqualString(t, "", m.DigString("non-existing", "non-existing"))
+	})
 }
 
 func TestDigMapping(t *testing.T) {
@@ -41,16 +66,23 @@ func TestDigMapping(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "foobar", m.DigMapping("foo")["bar"])
+	t.Run("fetch nested mapping", func(t *testing.T) {
+		mustEqualString(t, "foobar", m.DigMapping("foo")["bar"].(string))
+	})
 
-	m.DigMapping("foo", "baz")["dog"] = 1
-	assert.Equal(t, 1, m.Dig("foo", "baz", "dog"))
-	// Make sure foo.bar was left intact
-	assert.Equal(t, "foobar", m.Dig("foo", "bar"))
+	t.Run("set a nested value", func(t *testing.T) {
+		m.DigMapping("foo", "baz")["dog"] = 1
+		mustEqual(t, 1, m.Dig("foo", "baz", "dog"))
 
-	// Overwrite foo.bar with a new mapping
-	m.DigMapping("foo", "bar")["baz"] = "hello"
-	assert.Equal(t, "hello", m.Dig("foo", "bar", "baz"))
+		// Make sure foo.bar was left intact
+		mustEqualString(t, "foobar", m.DigString("foo", "bar"))
+	})
+
+	t.Run("overwrite mapping", func(t *testing.T) {
+		m.DigMapping("foo", "bar")["baz"] = "hello"
+		mustEqualString(t, "hello", m.DigString("foo", "bar", "baz"))
+		mustBeNil(t, m.Dig("foo", "bar", "dog"))
+	})
 }
 
 func TestDup(t *testing.T) {
@@ -69,37 +101,36 @@ func TestDup(t *testing.T) {
 
 	dup := m.Dup()
 
-	m.DigMapping("foo")["bar"] = "barbar"
-	arr := m.Dig("array").([]string)
-	arr = append(arr, "world")
-	m["array"] = arr
+	t.Run("modifying clone's values should not modify original", func(t *testing.T) {
+		m.DigMapping("foo")["bar"] = "barbar"
+		mustEqualString(t, "foobar", dup.DigString("foo", "bar"))
+		mustEqualString(t, "barbar", m.DigString("foo", "bar"))
+	})
 
-	ma := m["mappingarray"].([]dig.Mapping)
-	maa := ma[0]
-	maa["bar"] = "barbar"
+	t.Run("modifying a cloned slice should not modify original", func(t *testing.T) {
+		arr := m.Dig("array").([]string)
+		arr = append(arr, "world")
+		m["array"] = arr
 
-	assert.Equal(t, "barbar", m.Dig("foo", "bar"))
-	assert.Equal(t, "foobar", dup.Dig("foo", "bar"))
+		ma := m["mappingarray"].([]dig.Mapping)
+		maa := ma[0]
+		maa["bar"] = "barbar"
 
-	a := m.Dig("array").([]string)
-	b := dup.Dig("array").([]string)
+		mustEqual(t, 1, len(dup.Dig("array").([]string)))
+		mustEqual(t, 2, len(m.Dig("array").([]string)))
 
-	assert.Len(t, a, 2)
-	assert.Len(t, b, 1)
-
-	am := m.Dig("mappingarray").([]dig.Mapping)
-	bm := dup.Dig("mappingarray").([]dig.Mapping)
-
-	assert.Equal(t, "barbar", am[0]["bar"])
-	assert.Equal(t, "foobar", bm[0]["bar"])
+		am := m.Dig("mappingarray").([]dig.Mapping)
+		bm := dup.Dig("mappingarray").([]dig.Mapping)
+		mustEqualString(t, "barbar", am[0]["bar"].(string))
+		mustEqualString(t, "foobar", bm[0]["bar"].(string))
+	})
 }
 
 func TestUnmarshalYamlWithNil(t *testing.T) {
-	data := `foo: null`
+	data := []byte(`{"foo": null}`)
 	var m dig.Mapping
-	err := yaml.Unmarshal([]byte(data), &m)
-	assert.NoError(t, err)
-	assert.Nil(t, m.Dig("foo"))
+	mustBeNil(t, json.Unmarshal(data, &m))
+	mustBeNil(t, m.Dig("foo"))
 }
 
 func ExampleMapping_Dig() {
