@@ -1,16 +1,18 @@
-package dig
+package dig_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/k0sproject/dig"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 )
 
 func TestDig(t *testing.T) {
-	m := Mapping{
-		"foo": Mapping{
+	m := dig.Mapping{
+		"foo": dig.Mapping{
 			"bar": "foobar",
 		},
 	}
@@ -21,8 +23,8 @@ func TestDig(t *testing.T) {
 }
 
 func TestDigString(t *testing.T) {
-	m := Mapping{
-		"foo": Mapping{
+	m := dig.Mapping{
+		"foo": dig.Mapping{
 			"bar": "foobar",
 		},
 	}
@@ -33,8 +35,8 @@ func TestDigString(t *testing.T) {
 }
 
 func TestDigMapping(t *testing.T) {
-	m := Mapping{
-		"foo": Mapping{
+	m := dig.Mapping{
+		"foo": dig.Mapping{
 			"bar": "foobar",
 		},
 	}
@@ -52,14 +54,14 @@ func TestDigMapping(t *testing.T) {
 }
 
 func TestDup(t *testing.T) {
-	m := Mapping{
-		"foo": Mapping{
+	m := dig.Mapping{
+		"foo": dig.Mapping{
 			"bar": "foobar",
 		},
 		"array": []string{
 			"hello",
 		},
-		"mappingarray": []Mapping{
+		"mappingarray": []dig.Mapping{
 			{"bar": "foobar"},
 			{"foo": "barfoo"},
 		},
@@ -72,7 +74,7 @@ func TestDup(t *testing.T) {
 	arr = append(arr, "world")
 	m["array"] = arr
 
-	ma := m["mappingarray"].([]Mapping)
+	ma := m["mappingarray"].([]dig.Mapping)
 	maa := ma[0]
 	maa["bar"] = "barbar"
 
@@ -85,8 +87,8 @@ func TestDup(t *testing.T) {
 	assert.Len(t, a, 2)
 	assert.Len(t, b, 1)
 
-	am := m.Dig("mappingarray").([]Mapping)
-	bm := dup.Dig("mappingarray").([]Mapping)
+	am := m.Dig("mappingarray").([]dig.Mapping)
+	bm := dup.Dig("mappingarray").([]dig.Mapping)
 
 	assert.Equal(t, "barbar", am[0]["bar"])
 	assert.Equal(t, "foobar", bm[0]["bar"])
@@ -94,15 +96,15 @@ func TestDup(t *testing.T) {
 
 func TestUnmarshalYamlWithNil(t *testing.T) {
 	data := `foo: null`
-	var m Mapping
+	var m dig.Mapping
 	err := yaml.Unmarshal([]byte(data), &m)
 	assert.NoError(t, err)
 	assert.Nil(t, m.Dig("foo"))
 }
 
 func ExampleMapping_Dig() {
-	h := Mapping{
-		"greeting": Mapping{
+	h := dig.Mapping{
+		"greeting": dig.Mapping{
 			"target": "world",
 		},
 	}
@@ -111,14 +113,14 @@ func ExampleMapping_Dig() {
 }
 
 func ExampleMapping_DigMapping() {
-	h := Mapping{}
+	h := dig.Mapping{}
 	h.DigMapping("greeting")["target"] = "world"
 	fmt.Println("Hello,", h.Dig("greeting", "target"))
 	// Output: Hello, world
 }
 
 func ExampleMapping_DigString() {
-	h := Mapping{}
+	h := dig.Mapping{}
 	h.DigMapping("greeting")["target"] = "world"
 	fmt.Println("Hello,", h.DigString("greeting", "target"), "!")
 	fmt.Println("Hello,", h.Dig("greeting", "non-existing"), "!")
