@@ -1,6 +1,6 @@
 // Package dig provides a map[string]any Mapping type that has ruby-like "dig" functionality.
 //
-// It can be used for example to access and manipulate arbitary nested YAML/JSON structures.
+// It can be used for example to access and manipulate arbitrary nested YAML/JSON structures.
 package dig
 
 import "fmt"
