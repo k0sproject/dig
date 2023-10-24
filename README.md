@@ -1,10 +1,10 @@
 # Dig
 
-A go package that provides a Ruby-like `Hash.dig` mechanism for `map[string]interface{}`, which in YAML terminology is refered to as "Mapping".
+A simple zero-dependency go package that provides a Ruby-like `Hash.dig` mechanism for `map[string]any`, which in YAML is refered to as "Mapping".
 
 ## Usage
 
-Dig's Mapping is useful for example to use as the Unmarshal target of arbitrary YAML/JSON documents.
+The provided `dig.Mapping` is handy when unmarshaling arbitrary YAML/JSON documents.
 
 ### Example
 ```go
@@ -21,7 +21,7 @@ var yamlDoc = []byte(`---
 i18n:
   hello:
     se: Hejsan
-    fi: Morjens
+    fi: Moi
   world:
     se: Värld
     fi: Maailma
@@ -55,7 +55,7 @@ func main() {
 Output:
 
 ```
-Morjens, Maailma!
+Moi, Maailma!
 Hejsan, Värld!
 Hola, Mundo!
 ```
