@@ -151,11 +151,11 @@ func TestUnmarshalYamlFloat(t *testing.T) {
 
 	err := yaml.Unmarshal([]byte(
 		`
-            float_32: 0.22
+            float_64: 0.22
         `), &m)
 	mustBeNoError(t, err)
 
-	mustEqualFloat64(t, 0.22, m.Dig("float_32").(float64))
+	mustEqualFloat64(t, 0.22, m.Dig("float_64").(float64))
 }
 
 func ExampleMapping_Dig() {
