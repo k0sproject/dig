@@ -137,6 +137,8 @@ func cleanUpMapValue(v any) any {
 		return cleanUpInterfaceMap(v)
 	case string, int, bool, nil:
 		return v
+	case float32, float64:
+		return v
 	default:
 		return fmt.Sprintf("%v", v)
 	}

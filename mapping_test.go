@@ -21,7 +21,7 @@ func mustEqualString(t *testing.T, expected, actual string) {
 	}
 }
 
-func mustEqualFloat32(t *testing.T, expected, actual float32) {
+func mustEqualFloat64(t *testing.T, expected, actual float64) {
 	if expected != actual {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
@@ -155,7 +155,7 @@ func TestUnmarshalYamlFloat(t *testing.T) {
         `), &m)
 	mustBeNoError(t, err)
 
-	mustEqualFloat32(t, 0.22, m.Dig("float_32").(float32))
+	mustEqualFloat64(t, 0.22, m.Dig("float_32").(float64))
 }
 
 func ExampleMapping_Dig() {
