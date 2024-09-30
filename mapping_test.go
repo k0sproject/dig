@@ -5,10 +5,23 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/go-yaml/yaml"
 	"github.com/k0sproject/dig"
 )
 
+func mustBeNoError(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+}
+
 func mustEqualString(t *testing.T, expected, actual string) {
+	if expected != actual {
+		t.Errorf("Expected %v, got %v", expected, actual)
+	}
+}
+
+func mustEqualFloat32(t *testing.T, expected, actual float32) {
 	if expected != actual {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
@@ -131,6 +144,18 @@ func TestUnmarshalYamlWithNil(t *testing.T) {
 	var m dig.Mapping
 	mustBeNil(t, json.Unmarshal(data, &m))
 	mustBeNil(t, m.Dig("foo"))
+}
+
+func TestUnmarshalYamlFloat(t *testing.T) {
+	var m dig.Mapping
+
+	err := yaml.Unmarshal([]byte(
+		`
+            float_32: 0.22
+        `), &m)
+	mustBeNoError(t, err)
+
+	mustEqualFloat32(t, 0.22, m.Dig("float_32").(float32))
 }
 
 func ExampleMapping_Dig() {
