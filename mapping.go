@@ -4,11 +4,23 @@
 package dig
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 )
 
 // Mapping is a nested key-value map where the keys are strings and values are any. In Ruby it is called a Hash (with string keys), in YAML it's called a "mapping".
 type Mapping map[string]any
+
+// UnmarshalText for supporting json.Unmarshal
+func (m *Mapping) UnmarshalJSON(text []byte) error {
+	var result map[string]any
+	if err := json.Unmarshal(text, &result); err != nil {
+		return err
+	}
+	*m = cleanUpInterfaceMap(result)
+	return nil
+}
 
 // UnmarshalYAML for supporting yaml.Unmarshal
 func (m *Mapping) UnmarshalYAML(unmarshal func(any) error) error {
@@ -131,9 +143,17 @@ func cleanUpInterfaceArray(in []any) []any {
 
 // Cleans up the map keys to be strings
 func cleanUpInterfaceMap(in map[string]any) Mapping {
-	result := make(Mapping)
+	result := make(Mapping, len(in))
 	for k, v := range in {
 		result[k] = cleanUpValue(v)
+	}
+	return result
+}
+
+func stringifyKeys(in map[any]any) map[string]any {
+	result := make(map[string]any)
+	for k, v := range in {
+		result[fmt.Sprintf("%v", k)] = v
 	}
 	return result
 }
@@ -145,6 +165,8 @@ func cleanUpValue(v any) any {
 		return cleanUpInterfaceArray(v)
 	case map[string]any:
 		return cleanUpInterfaceMap(v)
+	case map[any]any:
+		return cleanUpInterfaceMap(stringifyKeys(v))
 	default:
 		return v
 	}
