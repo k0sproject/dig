@@ -45,10 +45,12 @@ func TestDig(t *testing.T) {
 		m.DigMapping("foo")["int"] = 1
 		mustEqual(t, 1, m.Dig("foo", "int"))
 	})
+
 	t.Run("float value", func(t *testing.T) {
 		m.DigMapping("foo")["float"] = 0.5
 		mustEqual(t, 0.5, m.Dig("foo", "float"))
 	})
+
 	t.Run("bool value", func(t *testing.T) {
 		m.DigMapping("foo")["bool"] = true
 		mustEqual(t, true, m.Dig("foo", "bool"))
@@ -153,6 +155,17 @@ func TestUnmarshalJSONWithFloat(t *testing.T) {
 	val, ok := m.Dig("foo").(float64)
 	mustEqual(t, true, ok)
 	mustEqual(t, 0.5, val)
+}
+
+func TestUnmarshalJSONWithSliceOfMaps(t *testing.T) {
+	data := []byte(`{"foo": [{"bar": "baz"}]}`)
+	var m dig.Mapping
+	mustBeNil(t, json.Unmarshal(data, &m))
+	val, ok := m.Dig("foo").([]any)
+	mustEqual(t, true, ok)
+	obj, ok := val[0].(dig.Mapping)
+	mustEqual(t, true, ok)
+	mustEqual(t, "baz", obj["bar"])
 }
 
 func ExampleMapping_Dig() {
