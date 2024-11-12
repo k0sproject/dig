@@ -4,7 +4,7 @@
 package dig
 
 import (
-	"time"
+	"reflect"
 )
 
 // Mapping is a nested key-value map where the keys are strings and values are any. In Ruby it is called a Hash (with string keys), in YAML it's called a "mapping".
@@ -24,6 +24,9 @@ func (m *Mapping) UnmarshalYAML(unmarshal func(any) error) error {
 //
 // It returns a value from a (deeply) nested tree structure.
 func (m *Mapping) Dig(keys ...string) any {
+	if len(keys) == 0 {
+		return nil
+	}
 	v, ok := (*m)[keys[0]]
 	if !ok {
 		return nil
@@ -74,62 +77,47 @@ func (m *Mapping) DigMapping(keys ...string) Mapping {
 
 // Dup creates a dereferenced copy of the Mapping
 func (m *Mapping) Dup() Mapping {
-	new := make(Mapping, len(*m))
+	newMap := make(Mapping, len(*m))
 	for k, v := range *m {
-		switch vt := v.(type) {
-		case Mapping:
-			new[k] = vt.Dup()
-		case *Mapping:
-			new[k] = vt.Dup()
-		case []Mapping:
-			var ns []Mapping
-			for _, sv := range vt {
-				ns = append(ns, sv.Dup())
-			}
-			new[k] = ns
-		case []*Mapping:
-			var ns []Mapping
-			for _, sv := range vt {
-				ns = append(ns, sv.Dup())
-			}
-			new[k] = ns
-		case []string:
-			var ns []string
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []int:
-			var ns []int
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []float32:
-			var ns []float32
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []float64:
-			var ns []float64
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []time.Time:
-			var ns []time.Time
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []time.Duration:
-			var ns []time.Duration
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []byte:
-			var ns []byte
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []bool:
-			var ns []bool
-			ns = append(ns, vt...)
-			new[k] = ns
-		default:
-			new[k] = vt
-		}
+		newMap[k] = deepCopy(v)
 	}
-	return new
+	return newMap
+}
+
+// deepCopy performs a deep copy of the value using reflection
+func deepCopy(value any) any {
+	if value == nil {
+		return nil
+	}
+
+	val := reflect.ValueOf(value)
+
+	switch val.Kind() {
+	case reflect.Map:
+		newMap := reflect.MakeMap(val.Type())
+		for _, key := range val.MapKeys() {
+			newMap.SetMapIndex(key, reflect.ValueOf(deepCopy(val.MapIndex(key).Interface())))
+		}
+		if plainmap, ok := newMap.Interface().(map[string]any); ok {
+			return cleanUpInterfaceMap(plainmap)
+		}
+		return newMap.Interface()
+	case reflect.Slice:
+		if val.IsNil() {
+			return nil
+		}
+		newSlice := reflect.MakeSlice(val.Type(), val.Len(), val.Cap())
+		for i := 0; i < val.Len(); i++ {
+			newSlice.Index(i).Set(reflect.ValueOf(deepCopy(val.Index(i).Interface())))
+		}
+		if plainslice, ok := newSlice.Interface().([]any); ok {
+			return cleanUpInterfaceArray(plainslice)
+		}
+		return newSlice.Interface()
+
+	default:
+		return value
+	}
 }
 
 // Cleans up a slice of interfaces into slice of actual values
