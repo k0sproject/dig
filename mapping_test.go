@@ -139,14 +139,14 @@ func TestDup(t *testing.T) {
 	})
 }
 
-func TestUnmarshalYamlWithNil(t *testing.T) {
+func TestUnmarshalJSONWithNil(t *testing.T) {
 	data := []byte(`{"foo": null}`)
 	var m dig.Mapping
 	mustBeNil(t, json.Unmarshal(data, &m))
 	mustBeNil(t, m.Dig("foo"))
 }
 
-func TestUnmarshalYamlWithFloat(t *testing.T) {
+func TestUnmarshalJSONWithFloat(t *testing.T) {
 	data := []byte(`{"foo": 0.5}`)
 	var m dig.Mapping
 	mustBeNil(t, json.Unmarshal(data, &m))
