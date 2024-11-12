@@ -3,7 +3,9 @@
 // It can be used for example to access and manipulate arbitrary nested YAML/JSON structures.
 package dig
 
-import "fmt"
+import (
+	"reflect"
+)
 
 // Mapping is a nested key-value map where the keys are strings and values are any. In Ruby it is called a Hash (with string keys), in YAML it's called a "mapping".
 type Mapping map[string]any
@@ -22,6 +24,9 @@ func (m *Mapping) UnmarshalYAML(unmarshal func(any) error) error {
 //
 // It returns a value from a (deeply) nested tree structure.
 func (m *Mapping) Dig(keys ...string) any {
+	if len(keys) == 0 {
+		return nil
+	}
 	v, ok := (*m)[keys[0]]
 	if !ok {
 		return nil
@@ -72,49 +77,54 @@ func (m *Mapping) DigMapping(keys ...string) Mapping {
 
 // Dup creates a dereferenced copy of the Mapping
 func (m *Mapping) Dup() Mapping {
-	new := make(Mapping, len(*m))
+	newMap := make(Mapping, len(*m))
 	for k, v := range *m {
-		switch vt := v.(type) {
-		case Mapping:
-			new[k] = vt.Dup()
-		case *Mapping:
-			new[k] = vt.Dup()
-		case []Mapping:
-			var ns []Mapping
-			for _, sv := range vt {
-				ns = append(ns, sv.Dup())
-			}
-			new[k] = ns
-		case []*Mapping:
-			var ns []Mapping
-			for _, sv := range vt {
-				ns = append(ns, sv.Dup())
-			}
-			new[k] = ns
-		case []string:
-			var ns []string
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []int:
-			var ns []int
-			ns = append(ns, vt...)
-			new[k] = ns
-		case []bool:
-			var ns []bool
-			ns = append(ns, vt...)
-			new[k] = ns
-		default:
-			new[k] = vt
-		}
+		newMap[k] = deepCopy(v)
 	}
-	return new
+	return newMap
+}
+
+// deepCopy performs a deep copy of the value using reflection
+func deepCopy(value any) any {
+	if value == nil {
+		return nil
+	}
+
+	val := reflect.ValueOf(value)
+
+	switch val.Kind() {
+	case reflect.Map:
+		newMap := reflect.MakeMap(val.Type())
+		for _, key := range val.MapKeys() {
+			newMap.SetMapIndex(key, reflect.ValueOf(deepCopy(val.MapIndex(key).Interface())))
+		}
+		if plainmap, ok := newMap.Interface().(map[string]any); ok {
+			return cleanUpInterfaceMap(plainmap)
+		}
+		return newMap.Interface()
+	case reflect.Slice:
+		if val.IsNil() {
+			return nil
+		}
+		newSlice := reflect.MakeSlice(val.Type(), val.Len(), val.Cap())
+		for i := 0; i < val.Len(); i++ {
+			newSlice.Index(i).Set(reflect.ValueOf(deepCopy(val.Index(i).Interface())))
+		}
+		if plainslice, ok := newSlice.Interface().([]any); ok {
+			return cleanUpInterfaceArray(plainslice)
+		}
+		return newSlice.Interface()
+
+	default:
+		return value
+	}
 }
 
 // Cleans up a slice of interfaces into slice of actual values
 func cleanUpInterfaceArray(in []any) []any {
 	result := make([]any, len(in))
 	for i, v := range in {
-		result[i] = cleanUpMapValue(v)
+		result[i] = cleanUpValue(v)
 	}
 	return result
 }
@@ -123,21 +133,19 @@ func cleanUpInterfaceArray(in []any) []any {
 func cleanUpInterfaceMap(in map[string]any) Mapping {
 	result := make(Mapping)
 	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+		result[k] = cleanUpValue(v)
 	}
 	return result
 }
 
 // Cleans up the value in the map, recurses in case of arrays and maps
-func cleanUpMapValue(v any) any {
+func cleanUpValue(v any) any {
 	switch v := v.(type) {
 	case []any:
 		return cleanUpInterfaceArray(v)
 	case map[string]any:
 		return cleanUpInterfaceMap(v)
-	case string, int, bool, nil:
-		return v
 	default:
-		return fmt.Sprintf("%v", v)
+		return v
 	}
 }
