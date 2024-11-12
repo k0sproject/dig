@@ -3,7 +3,9 @@
 // It can be used for example to access and manipulate arbitrary nested YAML/JSON structures.
 package dig
 
-import "fmt"
+import (
+	"time"
+)
 
 // Mapping is a nested key-value map where the keys are strings and values are any. In Ruby it is called a Hash (with string keys), in YAML it's called a "mapping".
 type Mapping map[string]any
@@ -99,6 +101,26 @@ func (m *Mapping) Dup() Mapping {
 			var ns []int
 			ns = append(ns, vt...)
 			new[k] = ns
+		case []float32:
+			var ns []float32
+			ns = append(ns, vt...)
+			new[k] = ns
+		case []float64:
+			var ns []float64
+			ns = append(ns, vt...)
+			new[k] = ns
+		case []time.Time:
+			var ns []time.Time
+			ns = append(ns, vt...)
+			new[k] = ns
+		case []time.Duration:
+			var ns []time.Duration
+			ns = append(ns, vt...)
+			new[k] = ns
+		case []byte:
+			var ns []byte
+			ns = append(ns, vt...)
+			new[k] = ns
 		case []bool:
 			var ns []bool
 			ns = append(ns, vt...)
@@ -114,7 +136,7 @@ func (m *Mapping) Dup() Mapping {
 func cleanUpInterfaceArray(in []any) []any {
 	result := make([]any, len(in))
 	for i, v := range in {
-		result[i] = cleanUpMapValue(v)
+		result[i] = cleanUpValue(v)
 	}
 	return result
 }
@@ -123,21 +145,19 @@ func cleanUpInterfaceArray(in []any) []any {
 func cleanUpInterfaceMap(in map[string]any) Mapping {
 	result := make(Mapping)
 	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+		result[k] = cleanUpValue(v)
 	}
 	return result
 }
 
 // Cleans up the value in the map, recurses in case of arrays and maps
-func cleanUpMapValue(v any) any {
+func cleanUpValue(v any) any {
 	switch v := v.(type) {
 	case []any:
 		return cleanUpInterfaceArray(v)
 	case map[string]any:
 		return cleanUpInterfaceMap(v)
-	case string, int, bool, nil:
-		return v
 	default:
-		return fmt.Sprintf("%v", v)
+		return v
 	}
 }
