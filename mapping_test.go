@@ -9,18 +9,21 @@ import (
 )
 
 func mustEqualString(t *testing.T, expected, actual string) {
+	t.Helper()
 	if expected != actual {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
 }
 
 func mustBeNil(t *testing.T, actual any) {
+	t.Helper()
 	if actual != nil {
 		t.Errorf("Expected nil, got %v", actual)
 	}
 }
 
 func mustEqual(t *testing.T, expected, actual any) {
+	t.Helper()
 	if expected != actual {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
@@ -166,6 +169,97 @@ func TestUnmarshalJSONWithSliceOfMaps(t *testing.T) {
 	obj, ok := val[0].(dig.Mapping)
 	mustEqual(t, true, ok)
 	mustEqual(t, "baz", obj["bar"])
+}
+
+func TestMerge(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		m := dig.Mapping{
+			"foo": "bar",
+			"bar": "baz",
+			"nested": dig.Mapping{
+				"foo": "bar",
+			},
+		}
+		other := dig.Mapping{
+			"foo": "baz",
+			"bar": nil,
+			"nested": dig.Mapping{
+				"foo": "baz",
+				"bar": "foo",
+			},
+		}
+		m.Merge(other)
+		mustEqualString(t, "bar", m.DigString("foo"))
+		mustEqualString(t, "bar", m.DigString("nested", "foo"))
+		mustEqualString(t, "foo", m.DigString("nested", "bar"))
+		mustEqualString(t, "baz", m.DigString("bar"))
+	})
+	t.Run("overwrite", func(t *testing.T) {
+		m := dig.Mapping{
+			"foo": "bar",
+			"bar": "baz",
+			"nested": dig.Mapping{
+				"foo": "bar",
+			},
+		}
+		other := dig.Mapping{
+			"foo": "baz",
+			"bar": nil,
+			"nested": dig.Mapping{
+				"foo": "baz",
+				"bar": "foo",
+			},
+		}
+		m.Merge(other, dig.WithOverwrite())
+		mustEqualString(t, "baz", m.DigString("foo"))
+		mustEqualString(t, "baz", m.DigString("bar"))
+		mustEqualString(t, "baz", m.DigString("nested", "foo"))
+		mustEqualString(t, "foo", m.DigString("nested", "bar"))
+	})
+	t.Run("nillify", func(t *testing.T) {
+		m := dig.Mapping{
+			"foo": "bar",
+			"bar": "baz",
+			"nested": dig.Mapping{
+				"foo": "bar",
+			},
+		}
+		other := dig.Mapping{
+			"foo": "baz",
+			"bar": nil,
+			"nested": dig.Mapping{
+				"foo": nil,
+				"bar": "foo",
+			},
+		}
+		m.Merge(other, dig.WithNillify())
+		mustEqualString(t, "bar", m.DigString("foo"))
+		mustBeNil(t, m.Dig("bar"))
+		mustBeNil(t, m.Dig("nested", "foo"))
+		mustEqualString(t, "foo", m.DigString("nested", "bar"))
+	})
+	t.Run("overwrite+nillify", func(t *testing.T) {
+		m := dig.Mapping{
+			"foo": "bar",
+			"bar": "baz",
+			"nested": dig.Mapping{
+				"foo": "bar",
+			},
+		}
+		other := dig.Mapping{
+			"foo": "baz",
+			"bar": nil,
+			"nested": dig.Mapping{
+				"foo": nil,
+				"bar": "foo",
+			},
+		}
+		m.Merge(other, dig.WithOverwrite(), dig.WithNillify())
+		mustEqualString(t, "baz", m.DigString("foo"))
+		mustBeNil(t, m.Dig("bar"))
+		mustBeNil(t, m.Dig("nested", "foo"))
+		mustEqualString(t, "foo", m.DigString("nested", "bar"))
+	})
 }
 
 func ExampleMapping_Dig() {
