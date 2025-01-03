@@ -118,6 +118,8 @@ type MergeOptions struct {
 	Overwrite bool
 	// Nillify removes keys from the target map if the value is nil in the source map
 	Nillify bool
+	// Append slices instead of overwriting them
+	Append bool
 }
 
 type MergeOption func(*MergeOptions)
@@ -136,7 +138,38 @@ func WithNillify() MergeOption {
 	}
 }
 
-// Merge deep merges the source map into the target map. Regardless of options, Mappings will be merged recursively. Slices are treated as any single value and are not combined.
+// WithAppend sets the Append option to true.
+func WithAppend() MergeOption {
+	return func(o *MergeOptions) {
+		o.Append = true
+	}
+}
+
+func sliceMerge(target any, source any) (any, error) {
+	targetVal := reflect.ValueOf(target)
+	sourceVal := reflect.ValueOf(source)
+
+	if targetVal.Kind() != reflect.Slice || sourceVal.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("both target and source must be slices")
+	}
+
+	targetElemType := targetVal.Type().Elem()
+	sourceElemType := sourceVal.Type().Elem()
+
+	if !sourceElemType.AssignableTo(targetElemType) &&
+		!(targetElemType.Kind() == reflect.Interface && sourceElemType.ConvertibleTo(targetElemType)) {
+		return nil, fmt.Errorf("incompatible slice element types: %s and %s", targetElemType, sourceElemType)
+	}
+
+	// Combine slices
+	combined := reflect.MakeSlice(targetVal.Type(), 0, targetVal.Len()+sourceVal.Len())
+	combined = reflect.AppendSlice(combined, targetVal)
+	combined = reflect.AppendSlice(combined, sourceVal)
+
+	return combined.Interface(), nil
+}
+
+// Merge deep merges the source map into the target map. Regardless of options, Mappings will be merged recursively. 
 func (m Mapping) Merge(source Mapping, opts ...MergeOption) {
 	options := MergeOptions{}
 	for _, opt := range opts {
@@ -157,6 +190,15 @@ func (m Mapping) Merge(source Mapping, opts ...MergeOption) {
 				m[k] = nil
 			}
 		default:
+			if m.HasKey(k) && options.Append {
+				if newSlice, err := sliceMerge(m[k], v); err == nil {
+					m[k] = newSlice
+					continue
+				}
+				if options.Overwrite {
+					m[k] = deepCopy(v)
+				}
+			}
 			if !m.HasKey(k) || options.Overwrite {
 				m[k] = deepCopy(v)
 			}

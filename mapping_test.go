@@ -260,6 +260,33 @@ func TestMerge(t *testing.T) {
 		mustBeNil(t, m.Dig("nested", "foo"))
 		mustEqualString(t, "foo", m.DigString("nested", "bar"))
 	})
+	t.Run("slice append", func(t *testing.T) {
+		m := dig.Mapping{
+			"foo": []string{"bar"},
+			"bar": []string{"baz"},
+			"map": []dig.Mapping{
+				{"foo": "bar"},
+			},
+		}
+		other := dig.Mapping{
+			"foo": []string{"baz"},
+			"bar": nil,
+			"map": []dig.Mapping{
+				{"foo": "baz"},
+			},
+		}
+		m.Merge(other, dig.WithAppend())
+		foo := m.Dig("foo").([]string)
+		mustEqual(t, 2, len(foo))
+		mustEqual(t, "bar", foo[0])
+		mustEqual(t, "baz", foo[1])
+		mustEqual(t, "baz", m.Dig("bar").([]string)[0])
+		mustEqual(t, 1, len(m.Dig("bar").([]string)))
+		mapping := m.Dig("map").([]dig.Mapping)
+		mustEqual(t, 2, len(mapping))
+		mustEqual(t, "bar", mapping[0]["foo"])
+		mustEqual(t, "baz", mapping[1]["foo"])
+	})
 }
 
 func ExampleMapping_Dig() {
