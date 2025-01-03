@@ -96,6 +96,116 @@ func (m *Mapping) Dup() Mapping {
 	return newMap
 }
 
+// HasKey checks if the key exists in the Mapping.
+func (m *Mapping) HasKey(key string) bool {
+	_, ok := (*m)[key]
+	return ok
+}
+
+// HasMapping checks if the key exists in the Mapping and is a Mapping.
+func (m *Mapping) HasMapping(key string) bool {
+	v, ok := (*m)[key]
+	if !ok {
+		return false
+	}
+	_, ok = v.(Mapping)
+	return ok
+}
+
+// MergeOptions are used to configure the Merge function.
+type MergeOptions struct {
+	// Overwrite existing values in the target map
+	Overwrite bool
+	// Nillify removes keys from the target map if the value is nil in the source map
+	Nillify bool
+	// Append slices instead of overwriting them
+	Append bool
+}
+
+type MergeOption func(*MergeOptions)
+
+// WithOverwrite sets the Overwrite option to true.
+func WithOverwrite() MergeOption {
+	return func(o *MergeOptions) {
+		o.Overwrite = true
+	}
+}
+
+// WithNillify sets the Nillify option to true.
+func WithNillify() MergeOption {
+	return func(o *MergeOptions) {
+		o.Nillify = true
+	}
+}
+
+// WithAppend sets the Append option to true.
+func WithAppend() MergeOption {
+	return func(o *MergeOptions) {
+		o.Append = true
+	}
+}
+
+func sliceMerge(target any, source any) (any, error) {
+	targetVal := reflect.ValueOf(target)
+	sourceVal := reflect.ValueOf(source)
+
+	if targetVal.Kind() != reflect.Slice || sourceVal.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("both target and source must be slices")
+	}
+
+	targetElemType := targetVal.Type().Elem()
+	sourceElemType := sourceVal.Type().Elem()
+
+	if !sourceElemType.AssignableTo(targetElemType) &&
+		!(targetElemType.Kind() == reflect.Interface && sourceElemType.ConvertibleTo(targetElemType)) {
+		return nil, fmt.Errorf("incompatible slice element types: %s and %s", targetElemType, sourceElemType)
+	}
+
+	// Combine slices
+	combined := reflect.MakeSlice(targetVal.Type(), 0, targetVal.Len()+sourceVal.Len())
+	combined = reflect.AppendSlice(combined, targetVal)
+	combined = reflect.AppendSlice(combined, sourceVal)
+
+	return combined.Interface(), nil
+}
+
+// Merge deep merges the source map into the target map. Regardless of options, Mappings will be merged recursively. 
+func (m Mapping) Merge(source Mapping, opts ...MergeOption) {
+	options := MergeOptions{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+	for k, v := range source {
+		switch v := v.(type) {
+		case Mapping:
+			if !m.HasKey(k) {
+				m[k] = v.Dup()
+			} else if m.HasMapping(k) {
+				m.DigMapping(k).Merge(v, opts...)
+			} else if options.Overwrite {
+				m[k] = v.Dup()
+			}
+		case nil:
+			if options.Nillify {
+				m[k] = nil
+			}
+		default:
+			if m.HasKey(k) && options.Append {
+				if newSlice, err := sliceMerge(m[k], v); err == nil {
+					m[k] = newSlice
+					continue
+				}
+				if options.Overwrite {
+					m[k] = deepCopy(v)
+				}
+			}
+			if !m.HasKey(k) || options.Overwrite {
+				m[k] = deepCopy(v)
+			}
+		}
+	}
+}
+
 // deepCopy performs a deep copy of the value using reflection
 func deepCopy(value any) any {
 	if value == nil {
